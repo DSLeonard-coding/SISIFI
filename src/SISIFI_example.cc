@@ -13,9 +13,8 @@ using IVehicleBuilderPtr = std::shared_ptr<IVehicleBuilder>;
 using CarBuilderPtr = std::shared_ptr<CarBuilder>;
 using BikeBuilderPtr = std::shared_ptr<BikeBuilder>;
 
-//A SISIFI inheritance tag:
+//A SISIFI inheritance-control tag:
 #define SISIFI_TAG std::integral_constant<int,0> = {}
-
 
 class IVehicleBuilder {
 public:
@@ -89,11 +88,12 @@ class CarBuilder : public VehicleBuilder<CarBuilder> {
     int num_doors_ = 4;
 
 public:
-    CarBuilderPtr SetNumDoors(int doors) {
+    /// Non virtual car-specific, but always reachable in concrete car chain.
+    CarBuilderPtr SetNumDoors(int doors)  {
         num_doors_ = doors;
         return this->shared_from_this();
     }
-
+    /// Virtual, polymorphic, rechable from interface.
     CarBuilderPtr SetNumWheels(int num_wheels) final {
         if (num_wheels != 4) { std::cout << "Cars have 4 wheels, silly!" << std::endl; }
         this->num_wheels = 4;
@@ -101,7 +101,9 @@ public:
     }
 
 protected:
-    std::string GetBody() override {
+    /// The Concrete build contribution.
+    /// Virtual on the CRTP base, used internally from concrete or interface.
+    std::string GetBody() final {
         std::string body_description = " car body with " + std::to_string(num_doors_) + " doors ";
         return body_description;
     }
@@ -117,7 +119,7 @@ public:
     }
 
 protected:
-    std::string GetBody() override {
+    std::string GetBody() final {
         std::string body_description = " bike body ";
         return body_description;
     }
@@ -135,21 +137,24 @@ int main() {
             ->SetNumDoors(2) // Non virtual mehod on derived class.
             ->Build(); // Build through base.
 
-    std::cout << "\n  Assembly Line:  \n\n";
-
     // And we can collect different kinds of IBuilders and loop over them.
     auto bike = CreateBikeBuilder();
 
+    std::cout << "\n  Assembly Line:  \n\n";
+
     std::vector<IVehicleBuilderPtr> list;
+    // Here's what inheritance still gets us.
+    // A car is an IVehicleBuilder even if its methods don't inherit.
     list.push_back(car);
     list.push_back(bike);
 
-    for (auto &b: list) {
-        b
+    for (auto &x: list) {
+        x
                 ->SetDisplacement(1200)
                 //This wires a polymorphic call all the way from IBuilder to the Concrete Car/Bike Builder.
                 //Proving the bridge links the vtables!
                 ->SetNumWheels(4)
+                //->SetNumDoors(2)  Won't compile.  Only cars have doors.
                 ->Build();
     }
 
